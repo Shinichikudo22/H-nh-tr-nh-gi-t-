@@ -160,9 +160,19 @@ function startGame(){
   playerName=document.getElementById('playerNameInput').value.trim()||'Bạn';
   localStorage.setItem('playerName',playerName);
   document.getElementById('startScreen').style.display='none';
-  if(!bgStarted){ bgMusic.play().catch(()=>{}); bgStarted=true; }
+  if(!bgStarted){
+    bgMusic.load();
+    bgMusic.play().catch(()=>{});   // Android OK, iOS nếu im lặng ta play ở touch dưới
+    bgStarted = true;
+  }
   startLoops();
 }
+  /* nếu vẫn im lặng – chạm canvas lần đầu sẽ play */
+canvas.addEventListener('touchstart',()=>{
+  if(bgMusic.paused){ bgMusic.play().catch(()=>{}); }
+},{once:true,passive:true});
+
+  /* auto chạy nếu đã có tên */
 window.addEventListener('DOMContentLoaded',()=>{
   if(playerName){
     document.getElementById('startScreen').style.display='none';
