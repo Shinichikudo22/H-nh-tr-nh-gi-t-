@@ -131,15 +131,15 @@ function startLoops(){
   gameLoop = setInterval(update,20);
   spawnLoop= setInterval(spawnObstacle,spawnInterval);
 
-  /* Sau 8 giây – tăng tốc & dày hơn */
-  setTimeout(()=>{
-    obstacleSpeed += 1;
-    if(spawnInterval>400){
+  /* CỨ MỖI 5 GIÂY tăng thêm độ khó */
+  setInterval(()=>{
+    obstacleSpeed += 0.5;      // mỗi chu kỳ +0.5 tốc độ
+    if (spawnInterval > 400){  // và giảm 100 ms (hoặc tuỳ ý)
       clearInterval(spawnLoop);
-      spawnInterval -= 300;        // 1400 → 1100 ms
-      spawnLoop = setInterval(spawnObstacle,spawnInterval);
+      spawnInterval -= 100;
+      spawnLoop = setInterval(spawnObstacle, spawnInterval);
     }
-  },5000);
+  }, 5000);   // lặp lại mãi, cách nhau 5000 ms
 }
 
 /* ---------- Kết thúc ---------- */
