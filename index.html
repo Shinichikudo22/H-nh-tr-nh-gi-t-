@@ -93,7 +93,7 @@ const nextMsg = () => { const m=messages[msgIdx%messages.length]; sessionStorage
 /* ---------- Tiện ích ---------- */
 const collides = (a,b) => {
   const dx=(a.x+a.w/2)-(b.x+b.w/2), dy=(a.y+a.h/2)-(b.y+b.h/2);
-  const r  = (a.w+b.w)*0.35;
+  const r  = (a.w+b.w)*0.3;
   return dx*dx+dy*dy < r*r;
 };
 
