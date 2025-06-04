@@ -201,8 +201,15 @@ canvas.addEventListener('touchend',e=>{
 },{passive:true});
 /* nút ảo */
 ['touchstart','mousedown'].forEach(evt=>{
-  btnLeft.addEventListener(evt,()=>{ if(giotMau.x>0) giotMau.x-=30;},{passive:true});
-  btnRight.addEventListener(evt,()=>{ if(giotMau.x<290)giotMau.x+=30;},{passive:true});
+  btnLeft.addEventListener(evt,()=>{
+    if (bgMusic.paused) bgMusic.play().catch(()=>{});   // <- bật nhạc nếu chưa phát
+    if (giotMau.x > 0) giotMau.x -= 30;
+  },{passive:true});
+
+  btnRight.addEventListener(evt,()=>{
+    if (bgMusic.paused) bgMusic.play().catch(()=>{});   // <- bật nhạc
+    if (giotMau.x < 290) giotMau.x += 30;
+  },{passive:true});
 });
 </script>
 </body>
