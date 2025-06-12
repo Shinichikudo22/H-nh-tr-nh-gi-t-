@@ -2,63 +2,139 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
+  <!-- Chặn phóng to trên di động -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Hành Trình Giọt Đỏ</title>
-  <style>
-    /* ----- Reset zoom & scrolling quirks on mobile ----- */
-    html,body{margin:0;padding:0;touch-action:manipulation;overscroll-behavior:none;}
 
-    body  { background:#ffe6e6;font-family:Arial,sans-serif;text-align:center; }
-    canvas{ border:3px solid darkred;border-radius:10px;background:linear-gradient(#fff0f0,#ffe6e6);box-shadow:0 0 20px red;margin-top:10px;touch-action:manipulation; }
+  <style>
+    /* ===== RESET & CƠ BẢN ===== */
+    html,body{margin:0;padding:0;touch-action:manipulation;overscroll-behavior:none;background:#ffe6e6;font-family:Arial,sans-serif;text-align:center}
+
+    canvas{border:3px solid darkred;border-radius:10px;background:linear-gradient(#fff0f0,#ffe6e6);box-shadow:0 0 20px red;margin-top:10px;touch-action:manipulation}
 
     #score,#gameOver{font-size:24px;margin-top:10px;color:darkred;font-weight:bold}
-    #gameOver{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);color:#fff;justify-content:center;align-items:center;flex-direction:column;z-index:10;padding:0 20px;text-align:center}
-    #startScreen{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;justify-content:center;align-items:center;z-index:20;flex-direction:column;color:#fff}
+    #gameOver{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);color:#fff;z-index:10;padding:0 20px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
 
-    /* nút / button không trigger double‑tap zoom */
+    #startScreen{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:20;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center}
+
     button,#btnLeft,#btnRight{padding:8px 16px;font-size:18px;border:none;border-radius:6px;background:#e53935;color:#fff;cursor:pointer;margin:10px;touch-action:manipulation;user-select:none}
   </style>
 </head>
 <body>
+  <!-- ===== MÀN NHẬP TÊN ===== -->
   <div id="startScreen">
     <h2>Nhập tên của bạn để bắt đầu</h2>
     <input id="playerNameInput" placeholder="Tên của bạn" style="padding:8px;font-size:18px;width:80%;max-width:300px;border-radius:4px;border:1px solid #ccc">
     <button onclick="startGame()">Bắt đầu chơi</button>
   </div>
 
+  <!-- ===== CANVAS & SCORE ===== -->
   <canvas id="gameCanvas" width="400" height="500"></canvas>
   <div id="score">Điểm: 0</div>
   <div id="gameOver"></div>
 
+  <!-- ===== NÚT DI CHUYỂN CHO MOBILE ===== -->
+  <div id="mobileControls" style="margin-top:14px;display:flex;justify-content:center;gap:40px">
+    <button id="btnLeft"  style="width:80px;height:80px;font-size:36px;border-radius:50%">◀︎</button>
+    <button id="btnRight" style="width:80px;height:80px;font-size:36px;border-radius:50%">▶︎</button>
+  </div>
+
+  <!-- ===== ÂM THANH ===== -->
   <audio id="hitSound" src="hit.wav"></audio>
   <audio id="bgMusic" src="journey.mp3" loop></audio>
 
   <script>
-    /* ----- Prevent double‑tap zoom on entire document (iOS Safari) ----- */
-    ['dblclick','gesturestart'].forEach(evt=>{
-      document.addEventListener(evt,e=>e.preventDefault(),{passive:false});
+  /* ========== CONSTANTS & STATE ========== */
+  const canvas = document.getElementById('gameCanvas');
+  const ctx    = canvas.getContext('2d');
+  const hitSound = document.getElementById('hitSound');
+  const bgMusic  = document.getElementById('bgMusic');
+
+  const bloodImg = new Image();
+  const clotImg  = new Image();
+  bloodImg.src = 'blood-drop.png';
+  clotImg.src  = 'clot.png';
+
+  const DROP_SIZE = 110;
+  const START_X   = 145;
+  const MAX_X     = 400 - DROP_SIZE;   // 290
+
+  let drop = {x:START_X,y:420,w:DROP_SIZE,h:DROP_SIZE};
+  let obstacles=[];
+  let speed=3, interval=1400, score=0;
+  let gameLoop=null, spawnLoop=null;
+  let imagesReady=0, autoStart=false;
+
+  /* ========== IMAGE PRELOAD ========== */
+  const onReady=()=>{if(++imagesReady===2&&autoStart)startLoops();};
+  bloodImg.onload=onReady; clotImg.onload=onReady;
+
+  /* ========== DRAW & UPDATE ========== */
+  const draw=()=>{
+    ctx.clearRect(0,0,400,500);
+    ctx.drawImage(bloodImg,drop.x,drop.y,drop.w,drop.h);
+    obstacles.forEach(o=>ctx.drawImage(clotImg,o.x,o.y,o.w,o.h));
+  };
+
+  const collide=(a,b)=>{
+    const dx=(a.x+a.w/2)-(b.x+b.w/2), dy=(a.y+a.h/2)-(b.y+b.h/2);
+    const r=(a.w+b.w)*0.35; return dx*dx+dy*dy<r*r;
+  };
+
+  function update(){
+    draw();
+    obstacles.forEach((o,i)=>{
+      o.y+=speed;
+      if(collide(drop,o)) return endGame();
+      if(o.y>500){obstacles.splice(i,1);score++;document.getElementById('score').textContent=`Điểm: ${score}`;}
     });
+  }
 
-    const canvas  = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d');
-    const hitSound= document.getElementById('hitSound'), bgMusic = document.getElementById('bgMusic');
-    const bloodImg=4000);} 
-    const endGame=()=>{clearInterval(gameLoop);clearInterval(spawnLoop);hitSound.play();bgMusic.pause();document.getElementById('gameOver').style.display='flex';document.getElementById('gameOver').innerHTML=`<p style="color:yellow;font-size:32px">${playerName||'Bạn'}, điểm: ${score}</p><p>Cảm ơn bạn đã tham gia trò chơi!</p><p style="font-style:italic">Hiến máu – chia sẻ sự sống!</p><button onclick="location.reload()">Chơi lại</button>`};
+  const spawnObstacle=()=>obstacles.push({x:Math.random()*MAX_X,y:-DROP_SIZE,w:DROP_SIZE,h:DROP_SIZE});
 
-    const startGame=()=>{playerName=document.getElementById('playerNameInput').value.trim()||'Bạn';localStorage.setItem('playerName',playerName);document.getElementById('startScreen').style.display='none';bgMusic.load();bgMusic.play().catch(()=>{});bgStarted=true;autoStart=true;if(imagesLoaded===2)startLoops();};
+  /* ========== GAME CONTROL ========== */
+  function escalate(){speed+=0.5;if(interval>400){clearInterval(spawnLoop);interval-=100;spawnLoop=setInterval(spawnObstacle,interval);}}
+  function startLoops(){gameLoop=setInterval(update,20);spawnLoop=setInterval(spawnObstacle,interval);setInterval(escalate,4000);}
 
-    /* auto start if name saved */
-    window.addEventListener('DOMContentLoaded',()=>{if(playerName){document.getElementById('startScreen').style.display='none';bgMusic.play().catch(()=>{});bgStarted=true;autoStart=true;if(imagesLoaded===2)startLoops();}});
+  let playerName=localStorage.getItem('playerName')||'';
+  function startGame(){
+    playerName=document.getElementById('playerNameInput').value.trim()||'Bạn';
+    localStorage.setItem('playerName',playerName);
+    document.getElementById('startScreen').style.display='none';
+    bgMusic.load(); bgMusic.play().catch(()=>{});
+    autoStart=true;
+    if(imagesReady===2) startLoops();
+  }
 
-    /* keyboard */
-    window.addEventListener('keydown',e=>{if(['ArrowLeft','a'].includes(e.key)&&giotMau.x>0)giotMau.x-=30;if(['ArrowRight','d'].includes(e.key)&&giotMau.x<290)giotMau.x+=30;});
+  function endGame(){
+    clearInterval(gameLoop);clearInterval(spawnLoop);
+    hitSound.currentTime=0;hitSound.play();bgMusic.pause();
+    const g=document.getElementById('gameOver');
+    g.style.display='flex';
+    g.innerHTML=`<p style='color:yellow;font-size:32px'>${playerName||'Bạn'}, điểm: ${score}</p><p>Cảm ơn bạn đã tham gia trò chơi!</p><button onclick='location.reload()'>Chơi lại</button>`;
+  }
 
-    /* swipe */
-    let sx=null;canvas.addEventListener('touchstart',e=>sx=e.touches[0].clientX,{passive:true});canvas.addEventListener('touchend',e=>{if(sx!==null){const dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>30){dx>0?giotMau.x=Math.min(290,giotMau.x+30):giotMau.x=Math.max(0,giotMau.x-30);}sx=null;}},{passive:true});
+  /* Auto‑start nếu có tên */
+  window.addEventListener('DOMContentLoaded',()=>{if(playerName){document.getElementById('startScreen').style.display='none';bgMusic.play().catch(()=>{});autoStart=true;if(imagesReady===2)startLoops();}});
 
-    /* on‑screen buttons (prevent zoom) */
-    const btnLeft=document.getElementById('btnLeft'),btnRight=document.getElementById('btnRight');
-    if(btnLeft){['touchstart','mousedown'].forEach(evt=>btnLeft.addEventListener(evt,e=>{e.preventDefault();if(bgMusic.paused)bgMusic.play().catch(()=>{});if(giotMau.x>0)giotMau.x-=30;},{passive:false}));}
-    if(btnRight){['touchstart','mousedown'].forEach(evt=>btnRight.addEventListener(evt,e=>{e.preventDefault();if(bgMusic.paused)bgMusic.play().catch(()=>{});if(giotMau.x<290)giotMau.x+=30;},{passive:false}));}
+  /* ========== CONTROLS ========== */
+  // Keyboard
+  window.addEventListener('keydown',e=>{
+    if(['ArrowLeft','a'].includes(e.key)&&drop.x>0) drop.x-=30;
+    if(['ArrowRight','d'].includes(e.key)&&drop.x<MAX_X) drop.x+=30;
+  });
+
+  // Swipe
+  let sX=null;canvas.addEventListener('touchstart',e=>sX=e.touches[0].clientX,{passive:true});
+  canvas.addEventListener('touchend',e=>{if(sX===null)return;const dx=e.changedTouches[0].clientX-sX;if(Math.abs(dx)>30){dx>0?drop.x=Math.min(MAX_X,drop.x+30):drop.x=Math.max(0,drop.x-30);}sX=null;},{passive:true});
+
+  // On‑screen buttons with preventDefault (fix zoom)
+  const btnLeft=document.getElementById('btnLeft');
+  const btnRight=document.getElementById('btnRight');
+  ['touchstart','mousedown'].forEach(evt=>{
+    btnLeft.addEventListener(evt,e=>{e.preventDefault();if(bgMusic.paused)bgMusic.play().catch(()=>{});if(drop.x>0)drop.x-=30;},{passive:false});
+    btnRight.addEventListener(evt,e=>{e.preventDefault();if(bgMusic.paused)bgMusic.play().catch(()=>{});if(drop.x<MAX_X)drop.x+=30;},{passive:false});
+  });
   </script>
 </body>
 </html>
