@@ -41,22 +41,7 @@
 
     const canvas  = document.getElementById('gameCanvas'), ctx = canvas.getContext('2d');
     const hitSound= document.getElementById('hitSound'), bgMusic = document.getElementById('bgMusic');
-    const bloodImg= new Image(), clotImg = new Image();
-    let imagesLoaded=0;
-    const ready=()=>{if(++imagesLoaded===2&&autoStart)startLoops();};
-    bloodImg.onload=ready; clotImg.onload=ready;
-    bloodImg.src='blood-drop.png'; clotImg.src='clot.png';
-
-    let playerName=localStorage.getItem('playerName')||'';
-    let bgStarted=false, autoStart=false;
-    let giotMau={x:145,y:420,w:110,h:110},obstacles=[],score=0,speed=3,interval=1400,gameLoop,spawnLoop;
-
-    /* ---- core funcs unchanged but compact ---- */
-    const draw=()=>{ctx.clearRect(0,0,400,500);ctx.drawImage(bloodImg,giotMau.x,giotMau.y,giotMau.w,giotMau.h);obstacles.forEach(o=>ctx.drawImage(clotImg,o.x,o.y,o.w,o.h));};
-    const collides=(a,b)=>{const dx=(a.x+a.w/2)-(b.x+b.w/2),dy=(a.y+a.h/2)-(b.y+b.h/2);return dx*dx+dy*dy<(a.w+b.w)**2*0.1225};
-    const update=()=>{draw();obstacles.forEach((o,i)=>{o.y+=speed;if(collides(giotMau,o))endGame();if(o.y>500){obstacles.splice(i,1);score++;document.getElementById('score').textContent='Điểm: '+score;}});};
-    const spawnObstacle=()=>obstacles.push({x:Math.random()*290,y:-110,w:110,h:110});
-    const startLoops=()=>{gameLoop=setInterval(update,20);spawnLoop=setInterval(spawnObstacle,interval);setInterval(()=>{speed+=0.5;if(interval>400){clearInterval(spawnLoop);interval-=100;spawnLoop=setInterval(spawnObstacle,interval);}},5000);} 
+    const bloodImg=4000);} 
     const endGame=()=>{clearInterval(gameLoop);clearInterval(spawnLoop);hitSound.play();bgMusic.pause();document.getElementById('gameOver').style.display='flex';document.getElementById('gameOver').innerHTML=`<p style="color:yellow;font-size:32px">${playerName||'Bạn'}, điểm: ${score}</p><p>Cảm ơn bạn đã tham gia trò chơi!</p><p style="font-style:italic">Hiến máu – chia sẻ sự sống!</p><button onclick="location.reload()">Chơi lại</button>`};
 
     const startGame=()=>{playerName=document.getElementById('playerNameInput').value.trim()||'Bạn';localStorage.setItem('playerName',playerName);document.getElementById('startScreen').style.display='none';bgMusic.load();bgMusic.play().catch(()=>{});bgStarted=true;autoStart=true;if(imagesLoaded===2)startLoops();};
