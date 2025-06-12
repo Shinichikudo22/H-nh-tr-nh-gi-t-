@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Hành Trình Giọt Đỏ</title>
+<style>
+  body{background:#ffe6e6;text-align:center;font-family:Arial,sans-serif;margin:0}
+  header{display:flex;align-items:center;gap:10px;padding:10px}
+  header img{width:120px;height:120px;border-radius:50%;object-fit:cover}
+  h1{color:darkred;margin:0 auto}
+  canvas{border:3px solid darkred;background:linear-gradient(#fff0f0,#ffe6e6);
+         box-shadow:0 0 20px red;border-radius:10px;margin-top:10px}
+  #score{font-size:24px;margin-top:10px;color:darkred;font-weight:bold}
+  #gameOver{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);
+            color:#fff;font-size:24px;justify-content:center;align-items:center;
+            flex-direction:column;z-index:10;text-align:center;padding:0 20px}
+  button{padding:8px 16px;font-size:18px;border:none;border-radius:6px;
+         background:#e53935;color:#fff;cursor:pointer}
+  @media (hover:hover){#mobileControls{display:none}}      /* ẩn nút khi dùng chuột */
+</style>
+</head>
+<body>
+<!-- ====== Tiêu đề & logo ====== -->
+<header>
+  <img src="logo.png" alt="CLB">
+  <h1>❤️ Hành Trình Giọt Đỏ Yêu Thương ❤️</h1>
+</header>
+
+<!-- ====== Màn hình nhập tên ====== -->
+<div id="startScreen" style="position:fixed;inset:0;background:rgba(0,0,0,.8);
+     display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:20">
+  <div style="background:#fff;padding:22px 30px;border-radius:8px;color:#333;max-width:90%">
+    <h2>Nhập tên của bạn để bắt đầu</h2>
+    <input id="playerNameInput" placeholder="Tên của bạn"
+           style="padding:8px;font-size:18px;width:80%;max-width:300px;border-radius:4px;border:1px solid #ccc">
+    <br><br>
+    <button onclick="startGame()">Bắt đầu chơi</button>
+  </div>
+</div>
+
+<canvas id="gameCanvas" width="400" height="500"></canvas>
+<div id="score">Điểm: 0</div>
+
+<!-- ====== Nút ảo cho mobile ====== -->
+<div id="mobileControls" style="margin-top:14px;display:flex;justify-content:center;gap:40px">
+  <button id="btnLeft" style="width:80px;height:80px;font-size:36px;border:none;border-radius:50%;background:#e74c3c;color:#fff">◀︎</button>
+  <button id="btnRight"style="width:80px;height:80px;font-size:36px;border:none;border-radius:50%;background:#e74c3c;color:#fff">▶︎</button>
+</div>
+
+<!-- ====== Âm thanh & overlay ====== -->
+<audio id="hitSound" src="hit.wav"></audio>
+<audio id="bgMusic"  src="journey.mp3" loop></audio>
+
+<div id="gameOver"><div id="gameOverContent"></div></div>
+
+<script>
+/* ---------- Canvas & ảnh ---------- */
+const canvas   = document.getElementById('gameCanvas');
+const ctx      = canvas.getContext('2d');
+const hitSound = document.getElementById('hitSound');
+const bgMusic  = document.getElementById('bgMusic');
+const imgBlood = new Image(); imgBlood.src = 'blood-drop.png';
+const imgClot  = new Image(); imgClot.src  = 'clot.png';
+
+/* ---------- Cấu hình ban đầu ---------- */
+let giotMau   = {x:145,y:420,w:110,h:110};
+let obstacles = [];
+let score = 0;
+let obstacleSpeed = 3;      // tốc độ rơi ban đầu
+let spawnInterval = 1400;   // ms tạo vật cản
+let gameLoop, spawnLoop;
+
+/* ---------- Nhạc & tên ---------- */
+let playerName = localStorage.getItem('playerName') || '';
+let bgStarted  = false;
+
+/* ---------- Thông điệp luân phiên ---------- */
+const messages = [
+"Bạn đã sưởi ấm thêm một trái tim!","Hiến máu – hành động nhỏ, ý nghĩa lớn!",
+"Mỗi giọt máu là một nụ cười trao đi!","Nhờ bạn, sự sống tiếp tục chảy!",
+"Cứu người đâu chỉ là lời nói – bạn đã hành động!","Một giọt hôm nay, vạn niềm vui mai sau!",
+"Sức mạnh yêu thương nằm trong huyết quản bạn!","Trao máu - Trao hi vọng!",
+"Bạn là anh hùng thầm lặng của bệnh nhân!","Từ trái tim đến trái tim – cảm ơn bạn!",
+"Kết nối sự sống bằng chính dòng máu bạn!","Cho đi để nhận lại nụ cười!",
+"Cảm ơn bạn, sự sống luôn cần bạn!","Hiến máu: hành động giản dị, giá trị vô biên!",
+"Bạn vừa viết tiếp câu chuyện diệu kỳ của sự sống!","Lan tỏa yêu thương, bắt đầu từ một giọt máu!",
+"Bạn và tôi – cùng xây nhịp cầu sự sống!","Thêm một giọt máu, thêm một cơ hội hồi sinh!",
+"Hiến máu hôm nay, khỏe mạnh hôm mai!","Máu bạn quý giá hơn vàng – cảm ơn!"
+].sort(()=>Math.random()-0.5);
+let msgIdx = Number(sessionStorage.getItem('msgIdx')||0);
+const nextMsg = () => { const m=messages[msgIdx%messages.length]; sessionStorage.setItem('msgIdx',++msgIdx); return m; };
+
+/* ---------- Tiện ích ---------- */
+const collides = (a,b) => {
+  const dx=(a.x+a.w/2)-(b.x+b.w/2), dy=(a.y+a.h/2)-(b.y+b.h/2);
+  const r  = (a.w+b.w)*0.25;
+  return dx*dx+dy*dy < r*r;
+};
+
+/* ---------- Vòng lặp ---------- */
+function draw(){
+  ctx.clearRect(0,0,400,500);
+  ctx.drawImage(imgBlood,giotMau.x,giotMau.y,giotMau.w,giotMau.h);
+  obstacles.forEach(o=>ctx.drawImage(imgClot,o.x,o.y,o.w,o.h));
+}
+function update(){
+  draw();
+  obstacles.forEach((o,i)=>{
+    o.y += obstacleSpeed;
+    if(collides(giotMau,o)) endGame();
+    if(o.y>500){
+      obstacles.splice(i,1);
+      score++;
+      document.getElementById('score').textContent='Điểm: '+score;
+      if(score%5===0){
+        /* tăng dần mỗi 5 điểm */
+        obstacleSpeed += 0.5;
+        if(spawnInterval>500){
+          clearInterval(spawnLoop);
+          spawnInterval -= 100;
+          spawnLoop = setInterval(spawnObstacle,spawnInterval);
+        }
+      }
+    }
+  });
+}
+const spawnObstacle = () => obstacles.push({x:Math.random()*290,y:-110,w:110,h:110});
+
+/* ---------- Khởi chạy & TĂNG ĐỘ KHÓ 8 s ---------- */
+function startLoops(){
+  gameLoop = setInterval(update,20);
+  spawnLoop= setInterval(spawnObstacle,spawnInterval);
+
+  /* CỨ MỖI 5 GIÂY tăng thêm độ khó */
+  setInterval(()=>{
+    obstacleSpeed += 0.5;      // mỗi chu kỳ +0.5 tốc độ
+    if (spawnInterval > 400){  // và giảm 100 ms (hoặc tuỳ ý)
+      clearInterval(spawnLoop);
+      spawnInterval -= 100;
+      spawnLoop = setInterval(spawnObstacle, spawnInterval);
+    }
+  }, 4000);   // lặp lại mãi, cách nhau 5000 ms
+}
+
+/* ---------- Kết thúc ---------- */
+function endGame(){
+  clearInterval(gameLoop); clearInterval(spawnLoop);
+  hitSound.currentTime=0; hitSound.play();
+  document.getElementById('gameOver').style.display='flex';
+  document.getElementById('gameOverContent').innerHTML=
+    `<p style="color:yellow;font-size:32px;margin:0;">Điểm của bạn: ${score}</p>
+     <p style="margin:10px 0;">${playerName||'Bạn'}, cảm ơn bạn đã tham gia trò chơi!</p>
+     <p style="font-style:italic;margin-bottom:15px;">${nextMsg()}</p>
+     <button onclick="location.reload()">Chơi lại</button>`;
+  bgMusic.pause();
+}
+
+/* ---------- Bắt đầu ---------- */
+function startGame(){
+  playerName=document.getElementById('playerNameInput').value.trim()||'Bạn';
+  localStorage.setItem('playerName',playerName);
+  document.getElementById('startScreen').style.display='none';
+  if(!bgStarted){
+    bgMusic.load();
+    bgMusic.play().catch(()=>{});   // Android OK, iOS nếu im lặng ta play ở touch dưới
+    bgStarted = true;
+  }
+  startLoops();
+}
+  /* nếu vẫn im lặng – chạm canvas lần đầu sẽ play */
+canvas.addEventListener('touchstart',()=>{
+  if(bgMusic.paused){ bgMusic.play().catch(()=>{}); }
+},{once:true,passive:true});
+
+  /* auto chạy nếu đã có tên */
+window.addEventListener('DOMContentLoaded',()=>{
+  if(playerName){
+    document.getElementById('startScreen').style.display='none';
+    if(!bgStarted){ bgMusic.play().catch(()=>{}); bgStarted=true; }
+    startLoops();
+  }
+});
+
+/* ---------- Điều khiển ---------- */
+/* phím */
+window.addEventListener('keydown',e=>{
+  if(['ArrowLeft','a'].includes(e.key)&&giotMau.x>0) giotMau.x-=30;
+  if(['ArrowRight','d'].includes(e.key)&&giotMau.x<290)giotMau.x+=30;
+});
+/* vuốt */
+let startX=null;
+canvas.addEventListener('touchstart',e=>startX=e.touches[0].clientX,{passive:true});
+canvas.addEventListener('touchend',e=>{
+  if(startX===null) return;
+  const dx=e.changedTouches[0].clientX-startX;
+  if(Math.abs(dx)>30){
+    if(dx>0&&giotMau.x<290) giotMau.x+=30;
+    if(dx<0&&giotMau.x>0)   giotMau.x-=30;
+  }
+  startX=null;
+},{passive:true});
+/* nút ảo */
+['touchstart','mousedown'].forEach(evt=>{
+  btnLeft.addEventListener(evt,()=>{
+    if (bgMusic.paused) bgMusic.play().catch(()=>{});   // <- bật nhạc nếu chưa phát
+    if (giotMau.x > 0) giotMau.x -= 30;
+  },{passive:true});
+
+  btnRight.addEventListener(evt,()=>{
+    if (bgMusic.paused) bgMusic.play().catch(()=>{});   // <- bật nhạc
+    if (giotMau.x < 290) giotMau.x += 30;
+  },{passive:true});
+});
+</script>
+</body>
+</html>
